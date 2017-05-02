@@ -16,8 +16,13 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.linear_model import SGDClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.feature_extraction.text import TfidfVectorizer
-
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.cluster import KMeans
+from nltk.cluster.kmeans import KMeansClusterer
+from nltk.cluster.util import cosine_distance
 from wordcloud import WordCloud, STOPWORDS
+import csv
+import os
 
 
 def wordcloud(dataframe, length):
@@ -52,24 +57,57 @@ def wordcloud(dataframe, length):
     plt.show()
 
 
-
-
-
+def clustering(dataframe, repeats):
+    num_clusters = 5
+    # define vectorizer parameters
+    tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+    # Only process the content, not the title
+    tfidf_matrix = tfidf_vectorizer.fit_transform(dataframe["Content"])
+    # Convert it to an array
+    tfidf_matrix_array = tfidf_matrix.toarray()
+    # Run K-means with cosine distance as the metric
+    kclusterer = KMeansClusterer(num_clusters, distance=cosine_distance, repeats=repeats)
+    # Output to assigned_clusters
+    assigned_clusters = kclusterer.cluster(tfidf_matrix_array, assign_clusters=True)
+    categories = ["Politics", "Film", "Football", "Business", "Technology"] #todo
+    # cluster_size counts how many elements each cluster contains
+    cluster_size = [0, 0, 0, 0, 0]
+    # Create a 5x5 array and fill it with zeros
+    matrix = [[0 for x in range(5)] for y in range(5)]
+    # For every catergory
+    for category in categories:
+        # For every article
+        for row in range(0, len(assigned_clusters)):
+            # Compare the cluster number with the category number
+            if assigned_clusters[row] == categories.index(category):
+                ind = categories.index(dataframe.ix[row][4])
+                matrix[categories.index(category)][ind] += 1
+    # Count how many elements each cluster contains
+    for row in range(0, len(assigned_clusters)):
+        cluster_size[assigned_clusters[row]] += 1
+    for x in range(5):
+        for y in range(5):
+            # Calculate frequency
+            matrix[x][y] /= cluster_size[x]
+            # Only keep the 2 first decimal digits
+            matrix[x][y] = format(matrix[x][y], '.2f')
+    # Output to a .csv file
+    out_file = open("output/clustering_KMeans.csv", 'w')
+    wr = csv.writer(out_file, delimiter="\t")
+    wr.writerow(categories)
+    for x in range(5):
+        wr.writerow(matrix[x])
 
 
 if __name__ == "__main__":
-    dataframe = pd.read_csv('./Documentation/train_set.csv', sep='\t')
-    # for column in dataframe.columns:
-    #     print(column)
-    # print(dataframe.describe())
-    # print(dataframe[["RowNum", "Content", "Category"]].iloc[5:10])
-    # print(dataframe[dataframe["RowNum"] < 5])
+    os.makedirs(os.path.dirname("output/"), exist_ok=True)
+    dataframe = pd.read_csv('./Documentation/train_set_tiny.csv', sep='\t')
 
     A = np.array(dataframe)
     length = A.shape[0]
     print(length)
-    wordcloud(dataframe, length)
-
+    # wordcloud(dataframe, length)
+    clustering(dataframe, 2)
     # for i in range(A.shape[0]):
     #     text = ""
     #     for j in range(A.shape[1]):
