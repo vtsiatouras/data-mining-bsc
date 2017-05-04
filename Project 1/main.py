@@ -23,7 +23,7 @@ from wordcloud import WordCloud, STOPWORDS
 from sklearn import svm
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score
-from sklearn.metrics import precision_score#todo
+from sklearn.metrics import precision_score, precision_recall_fscore_support#todo
 from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score, roc_curve, auc
 from sklearn.preprocessing import label_binarize
@@ -126,50 +126,48 @@ def svmClassifier(dataframe, test_dataframe):
 
     kf = KFold(n_splits=10)
     fold = 0
+    accuracy = 0
+    precision = 0
+    f_measure = 0
+    recall = 0
+    clf = 0
     for train_index, test_index in kf.split(dataframe["Content"]):
         X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
         X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
         clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
         clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
-        print(yPred)
-        print("Accuracy: ", accuracy_score(np.array(dataframe["Category"])[test_index], yPred))
-        print("F-measure: ", f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None))
+        f = f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None)
+        accuracy += accuracy_score(np.array(dataframe["Category"])[test_index], yPred)
+        f_measure += sum(f) / float(len(f))
+        recall += recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro')
+        precision += precision_score((dataframe["Category"])[test_index], yPred, average='macro')
         fold += 1
         print("Fold " + str(fold))
-        a = classification_report(yPred, np.array(dataframe["Category"])[test_index], target_names=categories)
-        print(a)
-    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-########################################################################################
-    count_vect = CountVectorizer(stop_words='english')
+        report = classification_report(np.array(dataframe["Category"])[test_index], yPred, target_names=categories)
+        print(report)
+
+    accuracy /= 10
+    precision /= 10
+    f_measure /= 10
+    recall /= 10
+    print("Precision: ", precision)
+    print("Accuracy: ", accuracy)
+    print("F Measure: ", f_measure)
+    print("Recall: ", recall)
     # define vectorizer parameters
     tfidf_vectorizer = TfidfVectorizer(stop_words='english')
     X = tfidf_vectorizer.fit_transform(dataframe["Content"])
     y = tfidf_vectorizer.fit_transform(dataframe["Category"])
-    print(X)
-    print()
-    print(y)
-
     # Binarize the output
     y = label_binarize(y, classes=[0, 1, 2, 3, 4])
     n_classes = y.shape[1]
-
-    # Add noisy features to make the problem harder
-    # random_state = np.random.RandomState(0)
-    # n_samples, n_features = X.shape
-    # X = np.c_[X, random_state.randn(n_samples, 200 * n_features)]
-
     # shuffle and split training and test sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5,
                                                         random_state=0)
-
     # Learn to predict each class against the other
-    #classifier = svm.SVC(C=2.0, gamma=0.0001, kernel='rbf', probability=True)
-    print("a")
     classifier = OneVsRestClassifier(clf)
     y_score = classifier.fit(X_train, y_train).decision_function(X_test)
-    print("asdf")
-
     # Compute ROC curve and ROC area for each class
     fpr = dict()
     tpr = dict()
@@ -181,10 +179,8 @@ def svmClassifier(dataframe, test_dataframe):
     # Compute micro-average ROC curve and ROC area
     fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_score.ravel())
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-    print("AUC: ", roc_auc["micro"])
-    print("precision_score: ", precision_score(np.array(dataframe["Category"])[test_index], yPred, average='macro'))
-    print("Accuracy: ", accuracy_score(np.array(dataframe["Category"])[test_index], yPred))
-    print("recall_score: ", recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro'))
+    print("AUC(micro): ", roc_auc["micro"])
+    #  ROC curve
     plt.figure()
     lw = 2
     plt.plot(fpr[2], tpr[2], color='darkorange',
@@ -196,23 +192,18 @@ def svmClassifier(dataframe, test_dataframe):
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic example')
     plt.legend(loc="lower right")
-
-    # Compute macro-average ROC curve and ROC area
-
     # First aggregate all false positive rates
     all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
-
     # Then interpolate all ROC curves at this points
     mean_tpr = np.zeros_like(all_fpr)
     for i in range(n_classes):
         mean_tpr += interp(all_fpr, fpr[i], tpr[i])
-
     # Finally average it and compute AUC
     mean_tpr /= n_classes
-
     fpr["macro"] = all_fpr
     tpr["macro"] = mean_tpr
     roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+    print("AUC(macro): ", roc_auc["macro"])
 
     # Plot all ROC curves
     plt.figure()
@@ -239,7 +230,6 @@ def svmClassifier(dataframe, test_dataframe):
     plt.ylabel('True Positive Rate')
     plt.title('Some extension of Receiver operating characteristic to multi-class')
     plt.legend(loc="lower right")
-
     plt.show()
 
 
