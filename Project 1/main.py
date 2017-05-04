@@ -23,6 +23,8 @@ from wordcloud import WordCloud, STOPWORDS
 from sklearn import svm
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import precision_score#todo
+from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score, roc_curve, auc
 from sklearn.preprocessing import label_binarize
 from scipy import interp
@@ -112,6 +114,33 @@ def clustering(dataframe, repeats):
 
 
 def svmClassifier(dataframe, test_dataframe):
+    categories = ["Politics", "Film", "Football", "Business", "Technology"]  # todo
+    # Create stopword set
+    myStopwords = STOPWORDS
+    myStopwords.update(ENGLISH_STOP_WORDS)
+    # Add extra stopwords
+    myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"])  # todo
+
+    count_vect = CountVectorizer(stop_words=myStopwords)
+    count_vect.fit(dataframe["Content"])
+
+    kf = KFold(n_splits=10)
+    fold = 0
+    for train_index, test_index in kf.split(dataframe["Content"]):
+        X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
+        X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
+        clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
+        clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
+        yPred = clf_cv.predict(X_test_counts)
+        print(yPred)
+        print("Accuracy: ", accuracy_score(np.array(dataframe["Category"])[test_index], yPred))
+        print("F-measure: ", f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None))
+        fold += 1
+        print("Fold " + str(fold))
+        a = classification_report(yPred, np.array(dataframe["Category"])[test_index], target_names=categories)
+        print(a)
+    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+########################################################################################
     count_vect = CountVectorizer(stop_words='english')
     # define vectorizer parameters
     tfidf_vectorizer = TfidfVectorizer(stop_words='english')
@@ -135,8 +164,9 @@ def svmClassifier(dataframe, test_dataframe):
                                                         random_state=0)
 
     # Learn to predict each class against the other
-    classifier = OneVsRestClassifier(svm.SVC(C=2.0, gamma=0.0001, kernel='rbf', probability=True))
+    #classifier = svm.SVC(C=2.0, gamma=0.0001, kernel='rbf', probability=True)
     print("a")
+    classifier = OneVsRestClassifier(clf)
     y_score = classifier.fit(X_train, y_train).decision_function(X_test)
     print("asdf")
 
@@ -151,7 +181,10 @@ def svmClassifier(dataframe, test_dataframe):
     # Compute micro-average ROC curve and ROC area
     fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_score.ravel())
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-
+    print("AUC: ", roc_auc["micro"])
+    print("precision_score: ", precision_score(np.array(dataframe["Category"])[test_index], yPred, average='macro'))
+    print("Accuracy: ", accuracy_score(np.array(dataframe["Category"])[test_index], yPred))
+    print("recall_score: ", recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro'))
     plt.figure()
     lw = 2
     plt.plot(fpr[2], tpr[2], color='darkorange',
@@ -216,7 +249,7 @@ def svmClassifier(dataframe, test_dataframe):
 
 if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
-    dataframe = pd.read_csv('./Documentation/train_set.csv', sep='\t')
+    dataframe = pd.read_csv('./Documentation/train_set_tiny.csv', sep='\t')
     test_dataframe = pd.read_csv('./Documentation/test_set.csv', sep='\t')
     A = np.array(dataframe)
     length = A.shape[0]
@@ -229,96 +262,3 @@ if __name__ == "__main__":
     print(accuracy_score(y_true, y_scores))
 
     svmClassifier(dataframe, test_dataframe)
-    # for i in range(A.shape[0]):
-    #     text = ""
-    #     for j in range(A.shape[1]):
-    #         text += str(A[i, j]) + ","
-    #     print(text)
-
-    # the histogram of the data
-    # plt.hist(dataframe["RowNum"], facecolor='green')
-    # plt.xlabel('Age')
-    # plt.ylabel('# of Applicants')
-    # plt.show()
-
-    # cnt = Counter()
-    # categories = ["Politics", "Film", "Football", "Business", "Technology"]
-    # i = 0
-    # for category in dataframe["Category"]:
-    #     i += 1
-    #     cnt[category] += 1
-    # print(i)
-    # print(cnt)
-    # for category in categories:
-    #     print(category + "  " + str(cnt[category]) + " Documents")
-    #
-    # my_additional_stop_words = ['Antonia', 'Nikos', 'Nikolas']
-    # stop_words = ENGLISH_STOP_WORDS.union(my_additional_stop_words)
-    # count_vect = CountVectorizer(stop_words=stop_words)
-    # count_vect.fit(dataframe["Content"])
-    # X_train_counts = count_vect.transform(dataframe["Content"])
-    # print(X_train_counts.shape)
-    #
-    # clf = MultinomialNB().fit(X_train_counts, dataframe["Category"])
-    # docs_new = ['referee is goal', 'OpenGL on the GPU is  fast']
-    # X_new_counts = count_vect.transform(docs_new)
-    # print(X_new_counts)
-    #
-    # predicted = clf.predict(X_new_counts)
-    #
-    # for doc, category in zip(docs_new, predicted):
-    #     print('%r => %s' % (doc, category))
-    #
-    # document = """
-    # is to offer a free vote to MPs on David Cameron’s proposals for UK to bomb Isis in Syria but will make clear that Labour party policy is to oppose airstrikes. The leader will also press Cameron to delay the vote until Labour’s concerns about the justification for the bombing are addressed, as part of a deal he has thrashed out with the deputy leader, Tom Watson, and other senior members of the shadow cabinet over the weekend. His decision averts the threat of a mass shadow cabinet walkout while making it clear that his own firmly held opposition to airstrikes is official Labour party policy, backed by the membership. It will also create a dilemma for Downing Street about whether to press ahead with the vote this week, because undecided Labour MPs are likely to be tempted to back Corbyn’s call for a longer timetable. Cameron has been expected to try for a vote on Wednesday but he has said he will not do so unless he is sure there is a clear majority in favour of strikes. It is understood has been no discussion with No 10 about Labour’s proposals to put off the vote. """
-    #
-    # X_new_counts = count_vect.transform([document])
-    #
-    # predicted = clf.predict(X_new_counts)
-    #
-    # print("Predicted category => " + str(predicted[0]))
-    #
-    # text_clf = Pipeline([('vect', CountVectorizer(stop_words='english')),
-    #                      ('tfidf', TfidfTransformer()),
-    #                      ('clf', MultinomialNB()),
-    #                      ])
-    #
-    # text_clf = text_clf.fit(dataframe["Content"], dataframe["Category"])
-    #
-    # docs_test = dataframe["Content"]
-    # predicted = text_clf.predict(docs_test)
-    # print(np.mean(predicted == dataframe["Category"]))
-    #
-    # print(classification_report(predicted, dataframe["Category"], target_names=categories))
-    #
-    # kf = KFold(n_splits=5)
-    # # kf.get_n_splits(dataframe["Content"])
-    # fold = 0
-    # for train_index, test_index in kf.split(dataframe["Content"]):
-    #     X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
-    #     X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
-    #
-    #     clf_cv = MultinomialNB().fit(X_train_counts, np.array(dataframe["Category"])[train_index])
-    #     yPred = clf_cv.predict(X_test_counts)
-    #     fold += 1
-    #     print("Fold " + str(fold))
-    #     print(classification_report(yPred, np.array(dataframe["Category"])[test_index], target_names=categories))
-    #
-    #
-    #
-    # vectorizer = TfidfVectorizer()
-    # vectorizer.fit_transform(dataframe["Content"])
-    # X_train_tfidf = vectorizer.transform(dataframe["Content"])
-    #
-    # svd = TruncatedSVD(n_components=500)
-    # X_lsi = svd.fit_transform(X_train_tfidf)
-    #
-    #
-    # clfSVD=SGDClassifier(loss='hinge', penalty='l2', alpha=1e-3, n_iter=5, random_state=42)\
-    #         .fit(X_lsi,dataframe["Category"])
-    # # clfSVD = GaussianNB().fit(X_lsi, twenty_train.target)
-    #
-    # X_test_lsi = svd.transform(vectorizer.transform(dataframe["Content"]))
-    # predictedSVD = clfSVD.predict(X_test_lsi)
-    #
-    # print(np.mean(predictedSVD == dataframe["Category"]))
