@@ -26,6 +26,12 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import f1_score, roc_curve, auc
 from sklearn.preprocessing import label_binarize
 from scipy import interp
+from itertools import cycle
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import label_binarize
+from sklearn.multiclass import OneVsRestClassifier
+
 
 import csv
 import os
@@ -106,72 +112,111 @@ def clustering(dataframe, repeats):
 
 
 def svmClassifier(dataframe, test_dataframe):
-    categories = ["Politics", "Film", "Football", "Business", "Technology"]  # todo
-    # Create stopword set
-    myStopwords = STOPWORDS
-    myStopwords.update(ENGLISH_STOP_WORDS)
-    # Add extra stopwords
-    myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"]) #todo
+    count_vect = CountVectorizer(stop_words='english')
+    # define vectorizer parameters
+    tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+    X = tfidf_vectorizer.fit_transform(dataframe["Content"])
+    y = tfidf_vectorizer.fit_transform(dataframe["Category"])
+    print(X)
+    print()
+    print(y)
 
-    count_vect = CountVectorizer(stop_words=myStopwords)
-    count_vect.fit(dataframe["Content"])
+    # Binarize the output
+    y = label_binarize(y, classes=[0, 1, 2, 3, 4])
+    n_classes = y.shape[1]
 
-    kf = KFold(n_splits=10)
-    # kf.get_n_splits(twenty_train.data)
+    # Add noisy features to make the problem harder
+    # random_state = np.random.RandomState(0)
+    # n_samples, n_features = X.shape
+    # X = np.c_[X, random_state.randn(n_samples, 200 * n_features)]
 
-    tprs = []
-    base_fpr = np.linspace(0, 1, 101)
+    # shuffle and split training and test sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5,
+                                                        random_state=0)
 
-    fold = 0
-    for train_index, test_index in kf.split(dataframe["Content"]):
-        X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
-        X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
+    # Learn to predict each class against the other
+    classifier = OneVsRestClassifier(svm.SVC(C=2.0, gamma=0.0001, kernel='rbf', probability=True))
+    print("a")
+    y_score = classifier.fit(X_train, y_train).decision_function(X_test)
+    print("asdf")
 
-        clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
-        #clf = svm.SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0, decision_function_shape=None, degree=3,
-        #              gamma=0.0001, kernel='rbf', max_iter=-1, probability=False, random_state=None, shrinking=True,
-        #             tol=0.001, verbose=False)
-        clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
-
-        # y_score = clf_cv.predict_proba(np.array(dataframe["Content"])[test_index])
-        # fpr, tpr, _ = roc_curve(np.array(dataframe["Content"])[test_index], y_score[:, 1])
-        # plt.plot(fpr, tpr, 'b', alpha=0.15)
-        # tpr = interp(base_fpr, fpr, tpr)
-        # tpr[0] = 0.0
-        # tprs.append(tpr)
-        y_score = classifier.fit(X_train, y_train).decision_function(X_test)
-        yPred = clf_cv.predict(X_test_counts)
-        print("Accuracy: ", accuracy_score(np.array(dataframe["Category"])[test_index], yPred))
-        print("F-measure: ", f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None))
-
-        bin_categories = label_binarize(dataframe["Category"], classes=[0, 1, 2, 3, 4])
-        n_classes = bin_categories.shape[1]
-        # Compute ROC curve and ROC area for each class
-        fpr = dict()
-        tpr = dict()
-        roc_auc = dict()
-        for i in range(n_classes):
-            fpr[i], tpr[i], _ = roc_curve(np.array(dataframe["Category"]), yScore[:, i])
+    # Compute ROC curve and ROC area for each class
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
-        #
-        # # Compute micro-average ROC curve and ROC area
-        # fpr["micro"], tpr["micro"], _ = roc_curve(np.array(dataframe["Category"]).ravel(), yScore.ravel())
-        # roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
 
-        #print("AUC: ", roc_auc_score(np.array(dataframe["Category"])[test_index], yPred))
+    # Compute micro-average ROC curve and ROC area
+    fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_score.ravel())
+    roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
 
-        #false_positive_rate, true_positive_rate, thresholds = roc_curve(np.array(X_train_counts, yPred))
-        #print("AUC: ", auc(false_positive_rate, true_positive_rate))
-        fold += 1
-        print("Fold " + str(fold))
-        a = classification_report(yPred, np.array(dataframe["Category"])[test_index], target_names=categories)
-        print(a)
+    plt.figure()
+    lw = 2
+    plt.plot(fpr[2], tpr[2], color='darkorange',
+             lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[2])
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic example')
+    plt.legend(loc="lower right")
+
+    # Compute macro-average ROC curve and ROC area
+
+    # First aggregate all false positive rates
+    all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+
+    # Then interpolate all ROC curves at this points
+    mean_tpr = np.zeros_like(all_fpr)
+    for i in range(n_classes):
+        mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+
+    # Finally average it and compute AUC
+    mean_tpr /= n_classes
+
+    fpr["macro"] = all_fpr
+    tpr["macro"] = mean_tpr
+    roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+
+    # Plot all ROC curves
+    plt.figure()
+    plt.plot(fpr["micro"], tpr["micro"],
+             label='micro-average ROC curve (area = {0:0.2f})'
+                   ''.format(roc_auc["micro"]),
+             color='deeppink', linestyle=':', linewidth=4)
+
+    plt.plot(fpr["macro"], tpr["macro"],
+             label='macro-average ROC curve (area = {0:0.2f})'
+                   ''.format(roc_auc["macro"]),
+             color='navy', linestyle=':', linewidth=4)
+
+    colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+    for i, color in zip(range(n_classes), colors):
+        plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+                 label='ROC curve of class {0} (area = {1:0.2f})'
+                       ''.format(i, roc_auc[i]))
+
+    plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Some extension of Receiver operating characteristic to multi-class')
+    plt.legend(loc="lower right")
+
+    plt.show()
+
+
+
 
 
 
 if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
-    dataframe = pd.read_csv('./Documentation/train_set_tiny.csv', sep='\t')
+    dataframe = pd.read_csv('./Documentation/train_set.csv', sep='\t')
     test_dataframe = pd.read_csv('./Documentation/test_set.csv', sep='\t')
     A = np.array(dataframe)
     length = A.shape[0]
