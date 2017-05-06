@@ -38,6 +38,8 @@ from pylab import figure, axes, pie, title, show
 from matplotlib.pyplot import savefig
 from sklearn.ensemble import RandomForestClassifier
 
+import time
+
 
 import csv
 import os
@@ -127,7 +129,7 @@ def clustering(dataframe, repeats, myStopwords):
         wr.writerow(matrix[x])
 
 
-def classification(classifier, dataframe, test_dataframe, myStopwords):
+def classification(classifier, dataframe, test_dataframe, myStopwords, predicted_categories, createpng):
     count_vect = CountVectorizer(stop_words=myStopwords)
     count_vect.fit(dataframe["Content"])
     kf = KFold(n_splits=10)
@@ -141,7 +143,7 @@ def classification(classifier, dataframe, test_dataframe, myStopwords):
         X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
         X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
         if classifier == "svm":
-            clf = svm.SVC(C=2.0, gamma=0.01, kernel='rbf', probability=True)
+            clf = svm.SVC(C=2.0, gamma=0.0001, kernel='linear', probability=True, cache_size=7000)
         elif classifier == "nb":
             clf = MultinomialNB()
         elif classifier == "rf":
@@ -208,7 +210,8 @@ def classification(classifier, dataframe, test_dataframe, myStopwords):
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic example')
     plt.legend(loc="lower right")
-    savefig('output/roc_10fold.png')
+    if createpng:
+        savefig('output/roc_10fold.png')
     # First aggregate all false positive rates
     all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
     # Then interpolate all ROC curves at this points
@@ -247,24 +250,49 @@ def classification(classifier, dataframe, test_dataframe, myStopwords):
     plt.ylabel('True Positive Rate')
     plt.title('Some extension of Receiver operating characteristic to multi-class')
     plt.legend(loc="lower right")
-    savefig('output/roc_10fold_detailed.png')
+    if createpng:
+        savefig('output/roc_10fold_detailed.png')
     # plt.show()
-    print("Finished classification, predicting categories for the training set...")
+    if predicted_categories:
+        print("Finished classification, predicting categories for the training set...")
+        # Output to a .csv file
+        out_file = open("output/testSet_categories.csv", 'w')
+        wr = csv.writer(out_file, delimiter="\t")
+        firstLine = ["ID", "Predicted_Category"]
+        wr.writerow(firstLine)
+        test_vector = count_vect.transform(test_dataframe["Content"])
+        predicted = clf_cv.predict(test_vector)
+        for i in range(len(test_dataframe)):
+            line = [int(test_dataframe["Id"][i]), predicted[i]]
+            wr.writerow(line)
+    return [accuracy, precision, recall, f_measure, roc_auc["macro"]]
+
+
+def createReport(dataframe, myStopwords):
+    a = classification("nb", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    b = classification("rf", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    c = classification("svm", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    report = np.array([a, b, c])
+    report = report.T
+    print(report)
     # Output to a .csv file
-    out_file = open("output/testSet_categories.csv", 'w')
+    out_file = open("output/EvaluationMetric_10fold.csv", 'w')
     wr = csv.writer(out_file, delimiter="\t")
-    firstLine = ["ID", "Predicted_Category"]
+    firstLine = ["Statistic Measure", "Naive Bayes", "Random Forests", "SVM"]
     wr.writerow(firstLine)
-    test_vector = count_vect.transform(test_dataframe["Content"])
-    predicted = clf_cv.predict(test_vector)
-    #line = [0 for x in range(len(test_dataframe))]
-    for i in range(len(test_dataframe)):
-        line = [int(test_dataframe["Id"][i]), predicted[i]]
+    names = ["Accuracy", "Precision", "Recall", "F-Measure", "AUC"]
+    for i in range(len(names)):
+        line = list(report[i])
+        line.insert(0, names[i])
         wr.writerow(line)
+
+
 
 
 if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
+    start_time = time.time()
+
     dataframe = pd.read_csv('./Documentation/train_set.csv', sep='\t')
     test_dataframe = pd.read_csv('./Documentation/test_set.csv', sep='\t')
     A = np.array(dataframe)
@@ -273,5 +301,7 @@ if __name__ == "__main__":
     myStopwords = createStopwords()
     # wordcloud(dataframe, length, myStopwords)
     # clustering(dataframe, 2, myStopwords)
-    classification("rf", dataframe, test_dataframe, myStopwords)
+    classification("svm", dataframe, test_dataframe, myStopwords, predicted_categories=True, createpng=True)
+    # createReport(dataframe, myStopwords)
+    print("--- %s seconds ---" % (time.time() - start_time))
 
