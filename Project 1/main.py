@@ -36,6 +36,7 @@ from sklearn.multiclass import OneVsRestClassifier
 
 from pylab import figure, axes, pie, title, show
 from matplotlib.pyplot import savefig
+from sklearn.ensemble import RandomForestClassifier
 
 
 import csv
@@ -126,7 +127,7 @@ def clustering(dataframe, repeats, myStopwords):
         wr.writerow(matrix[x])
 
 
-def classification(classifier, dataframe, test_dataframe, myStopwords):
+def classification(classifier, dataframe, myStopwords):
     count_vect = CountVectorizer(stop_words=myStopwords)
     count_vect.fit(dataframe["Content"])
     kf = KFold(n_splits=10)
@@ -141,8 +142,12 @@ def classification(classifier, dataframe, test_dataframe, myStopwords):
         X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
         if classifier == "svm":
             clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
-        elif classifier == "NB":
-            clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
+        elif classifier == "nb":
+            clf = MultinomialNB()
+        elif classifier == "rf":
+            clf = RandomForestClassifier()
+        else:
+            print("Wrong classifier name. Accepted classifiers are: \"svm\", \"nb\", \"rf\" ")
         clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
         f = f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None)
@@ -175,7 +180,10 @@ def classification(classifier, dataframe, test_dataframe, myStopwords):
                                                         random_state=0)
     # Learn to predict each class against the other
     classifier = OneVsRestClassifier(clf)
-    y_score = classifier.fit(X_train, y_train).decision_function(X_test)
+    if classifier == "svm":
+        y_score = classifier.fit(X_train, y_train).decision_function(X_test)
+    else:
+        y_score = classifier.fit(X_train, y_train).predict_proba(X_test)
     # Compute ROC curve and ROC area for each class
     fpr = dict()
     tpr = dict()
@@ -249,12 +257,12 @@ def classification(classifier, dataframe, test_dataframe, myStopwords):
 
 if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
-    dataframe = pd.read_csv('./Documentation/train_set_tiny.csv', sep='\t')
+    dataframe = pd.read_csv('./Documentation/train_set.csv', sep='\t')
     test_dataframe = pd.read_csv('./Documentation/test_set.csv', sep='\t')
     A = np.array(dataframe)
     length = A.shape[0]
     print(length)
     myStopwords = createStopwords()
     # wordcloud(dataframe, length, myStopwords)
-    clustering(dataframe, 2, myStopwords)
-    classification("svm", dataframe, test_dataframe, myStopwords)
+    # clustering(dataframe, 2, myStopwords)
+    classification("svm", dataframe, myStopwords)
