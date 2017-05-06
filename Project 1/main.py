@@ -38,9 +38,20 @@ from sklearn.multiclass import OneVsRestClassifier
 import csv
 import os
 
+categories = ["Politics", "Film", "Football", "Business", "Technology"]
 
-def wordcloud(dataframe, length):
-    categories = ["Politics", "Film", "Football", "Business", "Technology"]
+
+def createStopwords():
+    # Create stopword set
+    myStopwords = STOPWORDS
+    myStopwords.update(ENGLISH_STOP_WORDS)
+    # Add extra stopwords
+    myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"])
+    return myStopwords
+
+
+def wordcloud(dataframe, length, myStopwords):
+    # categories = ["Politics", "Film", "Football", "Business", "Technology"]
     # Create an empty array which will contain all the words per category
     word_string = ["", "", "", "", ""]
     # For every row
@@ -51,12 +62,13 @@ def wordcloud(dataframe, length):
         # Copy three times the title of the articles to word_string for extra weight
         for i in range(0, 3):
             word_string[ind] += dataframe.ix[row][2]
-    # Create stopword set
-    myStopwords = STOPWORDS
-    myStopwords.update(ENGLISH_STOP_WORDS)
-    # Add extra stopwords
-    myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"])
+    # # Create stopword set
+    # myStopwords = STOPWORDS
+    # myStopwords.update(ENGLISH_STOP_WORDS)
+    # # Add extra stopwords
+    # myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"])
     # For every category, create a wordcloud
+    print(myStopwords)
     for i in range(0, 5):
         wordcloud = WordCloud(stopwords=myStopwords,
                               background_color='white',
@@ -71,10 +83,10 @@ def wordcloud(dataframe, length):
     plt.show()
 
 
-def clustering(dataframe, repeats):
+def clustering(dataframe, repeats, myStopwords):
     num_clusters = 5
     # define vectorizer parameters
-    tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf_vectorizer = TfidfVectorizer(stop_words=myStopwords)
     # Only process the content, not the title
     tfidf_matrix = tfidf_vectorizer.fit_transform(dataframe["Content"])
     # Convert it to an array
@@ -83,12 +95,12 @@ def clustering(dataframe, repeats):
     kclusterer = KMeansClusterer(num_clusters, distance=cosine_distance, repeats=repeats)
     # Output to assigned_clusters
     assigned_clusters = kclusterer.cluster(tfidf_matrix_array, assign_clusters=True)
-    categories = ["Politics", "Film", "Football", "Business", "Technology"]  # todo
+    # categories = ["Politics", "Film", "Football", "Business", "Technology"]  # todo
     # cluster_size counts how many elements each cluster contains
     cluster_size = [0, 0, 0, 0, 0]
     # Create a 5x5 array and fill it with zeros
     matrix = [[0 for x in range(5)] for y in range(5)]
-    # For every catergory
+    # For every category
     for category in categories:
         # For every article
         for row in range(0, len(assigned_clusters)):
@@ -108,18 +120,23 @@ def clustering(dataframe, repeats):
     # Output to a .csv file
     out_file = open("output/clustering_KMeans.csv", 'w')
     wr = csv.writer(out_file, delimiter="\t")
-    wr.writerow(categories)
+    newCategories = categories
+    newCategories.insert(0, "\t")
+    wr.writerow(newCategories)
     for x in range(5):
+        newMatrix = matrix[x]
+        clusterName = "Cluster " + str(x + 1)
+        newMatrix.insert(0, clusterName)
         wr.writerow(matrix[x])
 
 
-def svmClassifier(dataframe, test_dataframe):
-    categories = ["Politics", "Film", "Football", "Business", "Technology"]  # todo
+def svmClassifier(dataframe, test_dataframe, myStopwords):
+    # categories = ["Politics", "Film", "Football", "Business", "Technology"]  # todo
     # Create stopword set
-    myStopwords = STOPWORDS
-    myStopwords.update(ENGLISH_STOP_WORDS)
-    # Add extra stopwords
-    myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"])  # todo
+    # myStopwords = STOPWORDS
+    # myStopwords.update(ENGLISH_STOP_WORDS)
+    # # Add extra stopwords
+    # myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"])  # todo
 
     count_vect = CountVectorizer(stop_words=myStopwords)
     count_vect.fit(dataframe["Content"])
@@ -244,11 +261,7 @@ if __name__ == "__main__":
     A = np.array(dataframe)
     length = A.shape[0]
     print(length)
-    # wordcloud(dataframe, length)
-    # clustering(dataframe, 2)
-    from sklearn.metrics import average_precision_score
-    y_true = np.array(["Politics", "Business", "Politics", "Technology"])
-    y_scores = np.array(["Politics", "Politics", "Football", "Technology"])
-    print(accuracy_score(y_true, y_scores))
-
-    svmClassifier(dataframe, test_dataframe)
+    myStopwords = createStopwords()
+    # wordcloud(dataframe, length, myStopwords)
+    clustering(dataframe, 2, myStopwords)
+    # svmClassifier(dataframe, test_dataframe, myStopwords)
