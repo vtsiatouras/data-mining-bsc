@@ -127,7 +127,7 @@ def clustering(dataframe, repeats, myStopwords):
         wr.writerow(matrix[x])
 
 
-def classification(classifier, dataframe, myStopwords):
+def classification(classifier, dataframe, test_dataframe, myStopwords):
     count_vect = CountVectorizer(stop_words=myStopwords)
     count_vect.fit(dataframe["Content"])
     kf = KFold(n_splits=10)
@@ -141,7 +141,7 @@ def classification(classifier, dataframe, myStopwords):
         X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
         X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
         if classifier == "svm":
-            clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
+            clf = svm.SVC(C=2.0, gamma=0.01, kernel='rbf', probability=True)
         elif classifier == "nb":
             clf = MultinomialNB()
         elif classifier == "rf":
@@ -248,11 +248,19 @@ def classification(classifier, dataframe, myStopwords):
     plt.title('Some extension of Receiver operating characteristic to multi-class')
     plt.legend(loc="lower right")
     savefig('output/roc_10fold_detailed.png')
-    plt.show()
-
-
-
-
+    # plt.show()
+    print("Finished classification, predicting categories for the training set...")
+    # Output to a .csv file
+    out_file = open("output/testSet_categories.csv", 'w')
+    wr = csv.writer(out_file, delimiter="\t")
+    firstLine = ["ID", "Predicted_Category"]
+    wr.writerow(firstLine)
+    test_vector = count_vect.transform(test_dataframe["Content"])
+    predicted = clf_cv.predict(test_vector)
+    #line = [0 for x in range(len(test_dataframe))]
+    for i in range(len(test_dataframe)):
+        line = [int(test_dataframe["Id"][i]), predicted[i]]
+        wr.writerow(line)
 
 
 if __name__ == "__main__":
@@ -265,4 +273,5 @@ if __name__ == "__main__":
     myStopwords = createStopwords()
     # wordcloud(dataframe, length, myStopwords)
     # clustering(dataframe, 2, myStopwords)
-    classification("svm", dataframe, myStopwords)
+    classification("rf", dataframe, test_dataframe, myStopwords)
+
