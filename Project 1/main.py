@@ -34,6 +34,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import label_binarize
 from sklearn.multiclass import OneVsRestClassifier
 
+from pylab import figure, axes, pie, title, show
+from matplotlib.pyplot import savefig
+
 
 import csv
 import os
@@ -51,7 +54,6 @@ def createStopwords():
 
 
 def wordcloud(dataframe, length, myStopwords):
-    # categories = ["Politics", "Film", "Football", "Business", "Technology"]
     # Create an empty array which will contain all the words per category
     word_string = ["", "", "", "", ""]
     # For every row
@@ -62,12 +64,6 @@ def wordcloud(dataframe, length, myStopwords):
         # Copy three times the title of the articles to word_string for extra weight
         for i in range(0, 3):
             word_string[ind] += dataframe.ix[row][2]
-    # # Create stopword set
-    # myStopwords = STOPWORDS
-    # myStopwords.update(ENGLISH_STOP_WORDS)
-    # # Add extra stopwords
-    # myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"])
-    # For every category, create a wordcloud
     print(myStopwords)
     for i in range(0, 5):
         wordcloud = WordCloud(stopwords=myStopwords,
@@ -130,17 +126,9 @@ def clustering(dataframe, repeats, myStopwords):
         wr.writerow(matrix[x])
 
 
-def svmClassifier(dataframe, test_dataframe, myStopwords):
-    # categories = ["Politics", "Film", "Football", "Business", "Technology"]  # todo
-    # Create stopword set
-    # myStopwords = STOPWORDS
-    # myStopwords.update(ENGLISH_STOP_WORDS)
-    # # Add extra stopwords
-    # myStopwords.update(["said", "say", "year", "will", "make", "time", "new", "says"])  # todo
-
+def classification(classifier, dataframe, test_dataframe, myStopwords):
     count_vect = CountVectorizer(stop_words=myStopwords)
     count_vect.fit(dataframe["Content"])
-
     kf = KFold(n_splits=10)
     fold = 0
     accuracy = 0
@@ -151,7 +139,10 @@ def svmClassifier(dataframe, test_dataframe, myStopwords):
     for train_index, test_index in kf.split(dataframe["Content"]):
         X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
         X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
-        clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
+        if classifier == "svm":
+            clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
+        elif classifier == "NB":
+            clf = svm.SVC(C=2.0, cache_size=200, gamma=0.0001, kernel='rbf', probability=True)
         clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
         f = f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None)
@@ -209,6 +200,7 @@ def svmClassifier(dataframe, test_dataframe, myStopwords):
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic example')
     plt.legend(loc="lower right")
+    savefig('output/roc_10fold.png')
     # First aggregate all false positive rates
     all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
     # Then interpolate all ROC curves at this points
@@ -247,6 +239,7 @@ def svmClassifier(dataframe, test_dataframe, myStopwords):
     plt.ylabel('True Positive Rate')
     plt.title('Some extension of Receiver operating characteristic to multi-class')
     plt.legend(loc="lower right")
+    savefig('output/roc_10fold_detailed.png')
     plt.show()
 
 
@@ -264,4 +257,4 @@ if __name__ == "__main__":
     myStopwords = createStopwords()
     # wordcloud(dataframe, length, myStopwords)
     clustering(dataframe, 2, myStopwords)
-    # svmClassifier(dataframe, test_dataframe, myStopwords)
+    classification("svm", dataframe, test_dataframe, myStopwords)
