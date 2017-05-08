@@ -32,14 +32,16 @@ from itertools import cycle
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import label_binarize
+from sklearn import preprocessing
 from sklearn.multiclass import OneVsRestClassifier
 
 from pylab import figure, axes, pie, title, show
 from matplotlib.pyplot import savefig
 from sklearn.ensemble import RandomForestClassifier
 
-import time
+from test2 import kNearestNeighbor
 
+import time
 
 import csv
 import os
@@ -140,27 +142,76 @@ def classification(classifier, dataframe, test_dataframe, myStopwords, predicted
     recall = 0
     clf = 0
     for train_index, test_index in kf.split(dataframe["Content"]):
+        flag = 0
         X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
         X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
+
+        tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+        X_train = tfidf_vectorizer.fit_transform(np.array(dataframe["Content"])[train_index])
+        X_test = tfidf_vectorizer.fit_transform(np.array(dataframe["Content"])[test_index])
+        # y_train = tfidf_vectorizer.fit_transform(np.array(dataframe["Category"])[train_index])
+        # y_test = tfidf_vectorizer.fit_transform(np.array(dataframe["Category"])[test_index])
+        # le = preprocessing.LabelEncoder()
+        # y_train = le.fit(np.array(dataframe["Category"])[train_index])
+        # y_test = le.fit(np.array(dataframe["Category"])[test_index])
+        # print(y_train)
+        # y_train = label_binarize(y_train, classes=[0, 1, 2, 3, 4])
+        # print(y_train)
+        # y_test = label_binarize(y_test, classes=[0, 1, 2, 3, 4])
         if classifier == "svm":
             clf = svm.SVC(C=2.0, gamma=0.0001, kernel='linear', probability=True, cache_size=7000)
         elif classifier == "nb":
             clf = MultinomialNB()
         elif classifier == "rf":
             clf = RandomForestClassifier()
+        elif classifier == "knn":
+            flag = 1
+            # Binarize the output
+            # y = label_binarize(y, classes=[0, 1, 2, 3, 4])
+            # n_classes = y.shape[1]
+            # shuffle and split training and test sets
+            # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5,
+            #                                                     random_state=0)
+            predictions = []
+            clf = kNearestNeighbor(X_train_counts, np.array(dataframe["Category"])[train_index], X_test_counts, predictions, 11)
+            print(predictions)
+            print(np.array(dataframe["Category"])[test_index])
+
+            correct_predictions = 0
+            for i in test_index:
+                j = 0
+                if np.array(dataframe["Category"])[i] == predictions[j]:
+                    correct_predictions += 1
+                j += 1
+                # print("Actual: ", np.array(dataframe["Category"])[i], "Predicted: ", clf[i])
+            knn_accuracy = correct_predictions * 100 / len(test_index)
+            print("Accuracy: ", knn_accuracy, "%")
+
+            accuracy = accuracy_score(np.array(dataframe["Category"])[test_index], predictions) * 100
+            print('\nThe accuracy of OUR classifier is %d%%' % accuracy)
+
+            # for i in predictions:
+            #     if i == [0, 0, 0, 0, 1]:
+            #         print()
+
+            exit()
+
+
         else:
             print("Wrong classifier name. Accepted classifiers are: \"svm\", \"nb\", \"rf\" ")
-        clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
-        yPred = clf_cv.predict(X_test_counts)
-        f = f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None)
-        accuracy += accuracy_score(np.array(dataframe["Category"])[test_index], yPred)
-        f_measure += sum(f) / float(len(f))
-        recall += recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro')
-        precision += precision_score((dataframe["Category"])[test_index], yPred, average='macro')
+
+        if flag == 0:
+            clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
+            yPred = clf_cv.predict(X_test_counts)
+            f = f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None)
+            accuracy += accuracy_score(np.array(dataframe["Category"])[test_index], yPred)
+            f_measure += sum(f) / float(len(f))
+            recall += recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro')
+            precision += precision_score((dataframe["Category"])[test_index], yPred, average='macro')
+            report = classification_report(np.array(dataframe["Category"])[test_index], yPred, target_names=categories)
+            print(report)
         fold += 1
         print("Fold " + str(fold))
-        report = classification_report(np.array(dataframe["Category"])[test_index], yPred, target_names=categories)
-        print(report)
 
     accuracy /= 10
     precision /= 10
@@ -299,9 +350,8 @@ if __name__ == "__main__":
     length = A.shape[0]
     print(length)
     myStopwords = createStopwords()
-    # wordcloud(dataframe, length, myStopwords)
+    wordcloud(dataframe, length, myStopwords)
     # clustering(dataframe, 2, myStopwords)
-    classification("svm", dataframe, test_dataframe, myStopwords, predicted_categories=True, createpng=True)
+    # classification("knn", dataframe, test_dataframe, myStopwords, predicted_categories=True, createpng=True)
     # createReport(dataframe, myStopwords)
     print("--- %s seconds ---" % (time.time() - start_time))
-
