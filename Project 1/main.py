@@ -131,7 +131,7 @@ def clustering(dataframe, repeats, myStopwords):
         wr.writerow(matrix[x])
 
 
-def classification(classifier_name, dataframe, test_dataframe, myStopwords, predicted_categories, createpng):
+def classification(classifier_name, dataframe, test_dataframe, myStopwords, predict_categories, createpng, dont_print=False):
     count_vect = CountVectorizer(stop_words=myStopwords)
     count_vect.fit(dataframe["Content"])
     kf = KFold(n_splits=10)
@@ -166,11 +166,9 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
             yPred = []
             clf = kNearestNeighbor(X_train_counts, np.array(dataframe["Category"])[train_index], X_test_counts, yPred,
                                    11)
-            # print(yPred)
-            # print(np.array(dataframe["Category"])[test_index])
-
         else:
-            print("Wrong classifier name. Accepted classifiers are: \"svm\", \"nb\", \"rf\" ")
+            if dont_print is False:
+                print("Wrong classifier name. Accepted classifiers are: \"svm\", \"nb\", \"rf\" ")
 
         if flag == 0:
             clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
@@ -182,20 +180,20 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
         recall += recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro')
         precision += precision_score((dataframe["Category"])[test_index], yPred, average='macro')
         fold += 1
-        print("Fold " + str(fold))
-        print("accuracy: ", accuracy_score(np.array(dataframe["Category"])[test_index], yPred), "  precision: ",
-              precision_score((dataframe["Category"])[test_index], yPred, average='macro'), "  recall: ",
-              recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro'), "    f-measure: ",
-              sum(f) / float(len(f)))
-
+        if dont_print is False:
+            print("Fold " + str(fold))
+            print("accuracy: ", accuracy_score(np.array(dataframe["Category"])[test_index], yPred), "  precision: ",
+                  precision_score((dataframe["Category"])[test_index], yPred, average='macro'), "  recall: ",
+                  recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro'), "    f-measure: ",
+                  sum(f) / float(len(f)))
     accuracy /= 10
     precision /= 10
     f_measure /= 10
     recall /= 10
-    print("Precision: ", precision)
-    print("Accuracy: ", accuracy)
-    print("F Measure: ", f_measure)
-    print("Recall: ", recall)
+    print("\tPrecision: ", precision)
+    print("\tAccuracy: ", accuracy)
+    print("\tF Measure: ", f_measure)
+    print("\tRecall: ", recall)
 
     ret_roc_auc = 0
     # Calculate ROC and AUC for svm, random forests and naive bayes
@@ -219,7 +217,8 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
         # Compute micro-average ROC curve and ROC area
         fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_score.ravel())
         roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-        print("AUC(micro): ", roc_auc["micro"])
+        if dont_print is False:
+            print("\tAUC(micro): ", roc_auc["micro"])
         #  ROC curve
         plt.figure()
         lw = 2
@@ -245,7 +244,7 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
         fpr["macro"] = all_fpr
         tpr["macro"] = mean_tpr
         roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
-        print("AUC(macro): ", roc_auc["macro"])
+        print("\tAUC(macro): ", roc_auc["macro"])
         ret_roc_auc = roc_auc["macro"]
 
         # Plot all ROC curves
@@ -276,7 +275,7 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
         if createpng:
             savefig('output/roc_10fold_detailed.png')
             # plt.show()
-    if predicted_categories:
+    if predict_categories:
         print("Finished classification, predicting categories for the training set...")
         # Output to a .csv file
         out_file = open("output/testSet_categories.csv", 'w')
@@ -300,22 +299,22 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
 
 def createReport(dataframe, myStopwords):
     print("Running Naive Bayes...")
-    a = classification("nb", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    a = classification("nb", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False, createpng=False, dont_print=True)
     print("Running Random Forests...")
-    b = classification("rf", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    b = classification("rf", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False, createpng=False, dont_print=True)
     print("Running SVM...")
-    c = classification("svm", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    c = classification("svm", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False, createpng=False, dont_print=True)
     print("Running K-Nearest Neighbor...")
-    d = classification("knn", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    d = classification("knn", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False, createpng=False, dont_print=True)
     report = np.array([a, b, c, d])
     # We need the transpose of the matrix
     report = report.T
     # Output to a .csv file
-    print("Dumping results to EvaluationMetric_10fold.csv...")
+    print("Dumping results to EvaluationMetric_10fold.csv...", end='')
     out_file = open("output/EvaluationMetric_10fold.csv", 'w')
     wr = csv.writer(out_file, delimiter="\t")
     firstLine = ["Statistic Measure", "Naive Bayes", "Random Forests", "SVM", "KNN"]
-    # Write the first line contraining the titles
+    # Write the first line which contains the titles
     wr.writerow(firstLine)
     names = ["Accuracy", "Precision", "Recall", "F-Measure", "AUC"]
     # Write the rest of the lines
@@ -323,6 +322,7 @@ def createReport(dataframe, myStopwords):
         line = list(report[i])
         line.insert(0, names[i])
         wr.writerow(line)
+    print("Done!")
 
 
 if __name__ == "__main__":
@@ -337,6 +337,6 @@ if __name__ == "__main__":
     myStopwords = createStopwords()
     # wordcloud(dataframe, length, myStopwords)
     # clustering(dataframe, 2, myStopwords)
-    # classification("knn", dataframe, test_dataframe, myStopwords, predicted_categories=True, createpng=True)
+    # classification("rf", dataframe, test_dataframe, myStopwords, predict_categories=False, createpng=True, dont_print=False)
     createReport(dataframe, myStopwords)
-    print("--- %s seconds ---" % (time.time() - start_time))
+    print("Total execution time %s seconds" % (time.time() - start_time))
