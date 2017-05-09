@@ -299,19 +299,26 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
 
 
 def createReport(dataframe, myStopwords):
+    print("Running Naive Bayes...")
     a = classification("nb", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    print("Running Random Forests...")
     b = classification("rf", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    print("Running SVM...")
     c = classification("svm", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
+    print("Running K-Nearest Neighbor...")
     d = classification("knn", dataframe, None, myStopwords, predicted_categories=False, createpng=False)
     report = np.array([a, b, c, d])
+    # We need the transpose of the matrix
     report = report.T
-    print(report)
     # Output to a .csv file
+    print("Dumping results to EvaluationMetric_10fold.csv...")
     out_file = open("output/EvaluationMetric_10fold.csv", 'w')
     wr = csv.writer(out_file, delimiter="\t")
     firstLine = ["Statistic Measure", "Naive Bayes", "Random Forests", "SVM", "KNN"]
+    # Write the first line contraining the titles
     wr.writerow(firstLine)
     names = ["Accuracy", "Precision", "Recall", "F-Measure", "AUC"]
+    # Write the rest of the lines
     for i in range(len(names)):
         line = list(report[i])
         line.insert(0, names[i])
@@ -322,7 +329,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
     start_time = time.time()
 
-    dataframe = pd.read_csv('./Documentation/train_set_tiny.csv', sep='\t')
+    dataframe = pd.read_csv('./Documentation/train_set220.csv', sep='\t')
     test_dataframe = pd.read_csv('./Documentation/test_set.csv', sep='\t')
     A = np.array(dataframe)
     length = A.shape[0]
