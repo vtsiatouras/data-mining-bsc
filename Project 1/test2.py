@@ -20,24 +20,17 @@ def predict(X_train, y_train, X_test, k):
         # distance = sklearn.metrics.pairwise.pairwise_distances(X_test, X_train[i]) #53%
         distance = sklearn.metrics.pairwise.cosine_distances(X_test, X_train[i]) #96%
         distance = distance[0][0]
-
         # add it to list of distances
         distances.append([distance, i])
-    # print(distances)
     # sort the list
     distances = sorted(distances)
-    # print(distances)
     # make a list of the k neighbors' targets
     for i in range(k):
         index = distances[i][1]
         targets.append(y_train[index])
 
     most_common_target = Counter(targets).most_common(1)[0][0]
-    # print("targets: ", targets[:k])
-    # print("most common: ", most_common_target)
-
     return most_common_target
-    # return targets[0]
 
 
 def kNearestNeighbor(X_train, y_train, X_test, predictions, k):
