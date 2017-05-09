@@ -1,48 +1,22 @@
-import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from collections import Counter
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS, TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.pipeline import Pipeline
-from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import classification_report
 from sklearn.model_selection import KFold
-from sklearn.decomposition import TruncatedSVD
-from sklearn.linear_model import SGDClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.cluster import KMeans
 from nltk.cluster.kmeans import KMeansClusterer
 from nltk.cluster.util import cosine_distance
 from wordcloud import WordCloud, STOPWORDS
 from sklearn import svm
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import precision_score, precision_recall_fscore_support  # todo
-from sklearn.metrics import recall_score
-from sklearn.metrics import f1_score, roc_curve, auc
-from sklearn.preprocessing import label_binarize
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
 from scipy import interp
 from itertools import cycle
-
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import label_binarize
-from sklearn import preprocessing
 from sklearn.multiclass import OneVsRestClassifier
-
-from pylab import figure, axes, pie, title, show
 from matplotlib.pyplot import savefig
 from sklearn.ensemble import RandomForestClassifier
-
 from test2 import kNearestNeighbor
-
 import time
-
 import csv
 import os
 
