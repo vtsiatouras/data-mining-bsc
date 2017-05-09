@@ -33,8 +33,8 @@ def predict(X_train, y_train, X_test, k):
         targets.append(y_train[index])
 
     most_common_target = Counter(targets).most_common(1)[0][0]
-    print("targets: ", targets[:k])
-    print("most common: ", most_common_target)
+    # print("targets: ", targets[:k])
+    # print("most common: ", most_common_target)
 
     return most_common_target
     # return targets[0]

@@ -23,7 +23,7 @@ from wordcloud import WordCloud, STOPWORDS
 from sklearn import svm
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score
-from sklearn.metrics import precision_score, precision_recall_fscore_support#todo
+from sklearn.metrics import precision_score, precision_recall_fscore_support  # todo
 from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score, roc_curve, auc
 from sklearn.preprocessing import label_binarize
@@ -131,7 +131,7 @@ def clustering(dataframe, repeats, myStopwords):
         wr.writerow(matrix[x])
 
 
-def classification(classifier, dataframe, test_dataframe, myStopwords, predicted_categories, createpng):
+def classification(classifier_name, dataframe, test_dataframe, myStopwords, predicted_categories, createpng):
     count_vect = CountVectorizer(stop_words=myStopwords)
     count_vect.fit(dataframe["Content"])
     kf = KFold(n_splits=10)
@@ -158,13 +158,13 @@ def classification(classifier, dataframe, test_dataframe, myStopwords, predicted
         # y_train = label_binarize(y_train, classes=[0, 1, 2, 3, 4])
         # print(y_train)
         # y_test = label_binarize(y_test, classes=[0, 1, 2, 3, 4])
-        if classifier == "svm":
+        if classifier_name == "svm":
             clf = svm.SVC(C=2.0, gamma=0.0001, kernel='linear', probability=True, cache_size=7000)
-        elif classifier == "nb":
+        elif classifier_name == "nb":
             clf = MultinomialNB()
-        elif classifier == "rf":
+        elif classifier_name == "rf":
             clf = RandomForestClassifier()
-        elif classifier == "knn":
+        elif classifier_name == "knn":
             flag = 1
             # Binarize the output
             # y = label_binarize(y, classes=[0, 1, 2, 3, 4])
@@ -172,46 +172,49 @@ def classification(classifier, dataframe, test_dataframe, myStopwords, predicted
             # shuffle and split training and test sets
             # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5,
             #                                                     random_state=0)
-            predictions = []
-            clf = kNearestNeighbor(X_train_counts, np.array(dataframe["Category"])[train_index], X_test_counts, predictions, 11)
-            print(predictions)
+            yPred = []
+            clf = kNearestNeighbor(X_train_counts, np.array(dataframe["Category"])[train_index], X_test_counts, yPred,
+                                   11)
+            print(yPred)
             print(np.array(dataframe["Category"])[test_index])
 
-            correct_predictions = 0
-            for i in test_index:
-                j = 0
-                if np.array(dataframe["Category"])[i] == predictions[j]:
-                    correct_predictions += 1
-                j += 1
-                # print("Actual: ", np.array(dataframe["Category"])[i], "Predicted: ", clf[i])
-            knn_accuracy = correct_predictions * 100 / len(test_index)
-            print("Accuracy: ", knn_accuracy, "%")
-
-            accuracy = accuracy_score(np.array(dataframe["Category"])[test_index], predictions) * 100
-            print('\nThe accuracy of OUR classifier is %d%%' % accuracy)
+            # correct_predictions = 0
+            # for i in test_index:
+            #     j = 0
+            #     if np.array(dataframe["Category"])[i] == yPred[j]:
+            #         correct_predictions += 1
+            #     j += 1
+            #     # print("Actual: ", np.array(dataframe["Category"])[i], "Predicted: ", clf[i])
+            # knn_accuracy = correct_predictions * 100 / len(test_index)
+            # print("Accuracy: ", knn_accuracy, "%")
+            #
+            # accuracy = accuracy_score(np.array(dataframe["Category"])[test_index], yPred) * 100
+            # print('\nThe accuracy of OUR classifier is %d%%' % accuracy)
 
             # for i in predictions:
             #     if i == [0, 0, 0, 0, 1]:
             #         print()
-
-            exit()
-
-
+            # exit()
         else:
             print("Wrong classifier name. Accepted classifiers are: \"svm\", \"nb\", \"rf\" ")
 
         if flag == 0:
             clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
             yPred = clf_cv.predict(X_test_counts)
-            f = f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None)
-            accuracy += accuracy_score(np.array(dataframe["Category"])[test_index], yPred)
-            f_measure += sum(f) / float(len(f))
-            recall += recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro')
-            precision += precision_score((dataframe["Category"])[test_index], yPred, average='macro')
-            report = classification_report(np.array(dataframe["Category"])[test_index], yPred, target_names=categories)
-            print(report)
+
+        f = f1_score(np.array(dataframe["Category"])[test_index], yPred, average=None)
+        accuracy += accuracy_score(np.array(dataframe["Category"])[test_index], yPred)
+        f_measure += sum(f) / float(len(f))
+        recall += recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro')
+        precision += precision_score((dataframe["Category"])[test_index], yPred, average='macro')
+        # report = classification_report(np.array(dataframe["Category"])[test_index], yPred, target_names=categories)
+        # print(report)
         fold += 1
         print("Fold " + str(fold))
+        print("accuracy: ", accuracy_score(np.array(dataframe["Category"])[test_index], yPred), "  precision: ",
+              precision_score((dataframe["Category"])[test_index], yPred, average='macro'), "  recall: ",
+              recall_score(np.array(dataframe["Category"])[test_index], yPred, average='macro'), "    f-measure: ",
+              sum(f) / float(len(f)))
 
     accuracy /= 10
     precision /= 10
@@ -221,6 +224,8 @@ def classification(classifier, dataframe, test_dataframe, myStopwords, predicted
     print("Accuracy: ", accuracy)
     print("F Measure: ", f_measure)
     print("Recall: ", recall)
+
+    ######################################################################################
     # define vectorizer parameters
     tfidf_vectorizer = TfidfVectorizer(stop_words='english')
     X = tfidf_vectorizer.fit_transform(dataframe["Content"])
@@ -229,12 +234,17 @@ def classification(classifier, dataframe, test_dataframe, myStopwords, predicted
     y = label_binarize(y, classes=[0, 1, 2, 3, 4])
     n_classes = y.shape[1]
     # shuffle and split training and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5,
-                                                        random_state=0)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.5, random_state=0)
+    ######################################################################################
+
     # Learn to predict each class against the other
     classifier = OneVsRestClassifier(clf)
-    if classifier == "svm":
+    if classifier_name == "svm":
         y_score = classifier.fit(X_train, y_train).decision_function(X_test)
+    if classifier_name == "knn":
+        ########## einai swsto arage auto?
+        y_score = []
+        kNearestNeighbor(X_train, y_train, X_test, y_score, 11)
     else:
         y_score = classifier.fit(X_train, y_train).predict_proba(X_test)
     # Compute ROC curve and ROC area for each class
@@ -338,20 +348,18 @@ def createReport(dataframe, myStopwords):
         wr.writerow(line)
 
 
-
-
 if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
     start_time = time.time()
 
-    dataframe = pd.read_csv('./Documentation/train_set.csv', sep='\t')
+    dataframe = pd.read_csv('./Documentation/train_set_xtiny.csv', sep='\t')
     test_dataframe = pd.read_csv('./Documentation/test_set.csv', sep='\t')
     A = np.array(dataframe)
     length = A.shape[0]
     print(length)
     myStopwords = createStopwords()
-    wordcloud(dataframe, length, myStopwords)
+    # wordcloud(dataframe, length, myStopwords)
     # clustering(dataframe, 2, myStopwords)
-    # classification("knn", dataframe, test_dataframe, myStopwords, predicted_categories=True, createpng=True)
+    classification("rf", dataframe, test_dataframe, myStopwords, predicted_categories=True, createpng=True)
     # createReport(dataframe, myStopwords)
     print("--- %s seconds ---" % (time.time() - start_time))
