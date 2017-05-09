@@ -1,8 +1,6 @@
 import numpy as np
 from collections import Counter
-from sklearn.metrics.pairwise import cosine_similarity
 import sklearn.metrics.pairwise
-import scipy
 
 
 def train(X_train, y_train):
