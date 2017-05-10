@@ -15,7 +15,7 @@ from sklearn.preprocessing import label_binarize
 from sklearn.multiclass import OneVsRestClassifier
 from matplotlib.pyplot import savefig
 from sklearn.ensemble import RandomForestClassifier
-from test2 import kNearestNeighbor
+from knn import kNearestNeighbor
 import time
 import csv
 import os
@@ -70,7 +70,6 @@ def clustering(dataframe, repeats, myStopwords):
     kclusterer = KMeansClusterer(num_clusters, distance=cosine_distance, repeats=repeats)
     # Output to assigned_clusters
     assigned_clusters = kclusterer.cluster(tfidf_matrix_array, assign_clusters=True)
-    # categories = ["Politics", "Film", "Football", "Business", "Technology"]  # todo
     # cluster_size counts how many elements each cluster contains
     cluster_size = [0, 0, 0, 0, 0]
     # Create a 5x5 array and fill it with zeros
@@ -105,9 +104,11 @@ def clustering(dataframe, repeats, myStopwords):
         wr.writerow(matrix[x])
 
 
-def classification(classifier_name, dataframe, test_dataframe, myStopwords, predict_categories, createpng, dont_print=False):
+def classification(classifier_name, dataframe, test_dataframe, myStopwords, predict_categories, createpng,
+                   dont_print=False):
     count_vect = CountVectorizer(stop_words=myStopwords)
     count_vect.fit(dataframe["Content"])
+    tfidf_vectorizer = TfidfVectorizer(stop_words=myStopwords)
     kf = KFold(n_splits=10)
     fold = 0
     accuracy = 0
@@ -116,35 +117,27 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
     recall = 0
     clf = 0
     for train_index, test_index in kf.split(dataframe["Content"]):
-        flag = 0
         X_train_counts = count_vect.transform(np.array(dataframe["Content"])[train_index])
         X_test_counts = count_vect.transform(np.array(dataframe["Content"])[test_index])
-
-        tfidf_vectorizer = TfidfVectorizer(stop_words='english')
-        X_train = tfidf_vectorizer.fit_transform(np.array(dataframe["Content"])[train_index])
-        X_test = tfidf_vectorizer.fit_transform(np.array(dataframe["Content"])[test_index])
         y_train = tfidf_vectorizer.fit_transform(np.array(dataframe["Category"])[train_index])
         y_test = tfidf_vectorizer.fit_transform(np.array(dataframe["Category"])[test_index])
         y_train = label_binarize(y_train, classes=[0, 1, 2, 3, 4])
         y_test = label_binarize(y_test, classes=[0, 1, 2, 3, 4])
 
-
         if classifier_name == "svm":
-            clf = svm.SVC(C=2.0, gamma=0.0001, kernel='linear', probability=True, cache_size=7000)
+            clf = svm.LinearSVC(tol=0.0001, C=1.0, max_iter=1000)
         elif classifier_name == "nb":
             clf = MultinomialNB()
         elif classifier_name == "rf":
             clf = RandomForestClassifier()
         elif classifier_name == "knn":
-            flag = 1
-            yPred = []
-            clf = kNearestNeighbor(X_train_counts, np.array(dataframe["Category"])[train_index], X_test_counts, yPred,
-                                   11)
+            yPred = kNearestNeighbor(X_train_counts, np.array(dataframe["Category"])[train_index], X_test_counts,
+                                     11)
         else:
             if dont_print is False:
                 print("Wrong classifier name. Accepted classifiers are: \"svm\", \"nb\", \"rf\" ")
 
-        if flag == 0:
+        if classifier_name != "knn":
             clf_cv = clf.fit(X_train_counts, np.array(dataframe["Category"])[train_index])
             yPred = clf_cv.predict(X_test_counts)
 
@@ -193,7 +186,7 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
         roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
         if dont_print is False:
             print("\tAUC(micro): ", roc_auc["micro"])
-        #  ROC curve
+        # ROC curve
         plt.figure()
         lw = 2
         plt.plot(fpr[2], tpr[2], color='darkorange',
@@ -261,8 +254,6 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
         if classifier_name == "knn":
             kNearestNeighbor(X_train_counts, np.array(dataframe["Category"])[train_index], test_vector, predicted,
                              11)
-            # This is used to only for the KNN. Roc/auc are not calculated.
-            # roc_auc[0] = 0
         else:
             predicted = clf_cv.predict(test_vector)
         for i in range(len(test_dataframe)):
@@ -273,13 +264,17 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
 
 def createReport(dataframe, myStopwords):
     print("Running Naive Bayes...")
-    a = classification("nb", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False, createpng=False, dont_print=True)
+    a = classification("nb", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False,
+                       createpng=False, dont_print=True)
     print("Running Random Forests...")
-    b = classification("rf", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False, createpng=False, dont_print=True)
+    b = classification("rf", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False,
+                       createpng=False, dont_print=True)
     print("Running SVM...")
-    c = classification("svm", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False, createpng=False, dont_print=True)
+    c = classification("svm", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False,
+                       createpng=False, dont_print=True)
     print("Running K-Nearest Neighbor...")
-    d = classification("knn", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False, createpng=False, dont_print=True)
+    d = classification("knn", dataframe, test_dataframe=None, myStopwords=myStopwords, predict_categories=False,
+                       createpng=False, dont_print=True)
     report = np.array([a, b, c, d])
     # We need the transpose of the matrix
     report = report.T
@@ -303,7 +298,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
     start_time = time.time()
 
-    dataframe = pd.read_csv('./Documentation/train_set220.csv', sep='\t')
+    dataframe = pd.read_csv('./Documentation/train_set_small.csv', sep='\t')
     test_dataframe = pd.read_csv('./Documentation/test_set.csv', sep='\t')
     A = np.array(dataframe)
     length = A.shape[0]
@@ -311,6 +306,6 @@ if __name__ == "__main__":
     myStopwords = createStopwords()
     # wordcloud(dataframe, length, myStopwords)
     # clustering(dataframe, 2, myStopwords)
-    # classification("rf", dataframe, test_dataframe, myStopwords, predict_categories=False, createpng=True, dont_print=False)
-    createReport(dataframe, myStopwords)
+    classification("svm", dataframe, test_dataframe, myStopwords, predict_categories=False, createpng=True, dont_print=False)
+    # createReport(dataframe, myStopwords)
     print("Total execution time %s seconds" % (time.time() - start_time))
