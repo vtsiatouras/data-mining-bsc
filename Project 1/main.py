@@ -43,7 +43,6 @@ def wordcloud(dataframe, length, myStopwords):
         # Copy three times the title of the articles to word_string for extra weight
         for i in range(0, 3):
             word_string[ind] += dataframe.ix[row][2]
-    print(myStopwords)
     for i in range(0, 5):
         wordcloud = WordCloud(stopwords=myStopwords,
                               background_color='white',
@@ -132,7 +131,7 @@ def classification(classifier_name, dataframe, test_dataframe, myStopwords, pred
             clf = RandomForestClassifier()
         elif classifier_name == "knn":
             yPred = kNearestNeighbor(X_train_counts, np.array(dataframe["Category"])[train_index], X_test_counts,
-                                     11)
+                                     3)
         else:
             if dont_print is False:
                 print("Wrong classifier name. Accepted classifiers are: \"svm\", \"nb\", \"rf\" ")
@@ -298,14 +297,14 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
     start_time = time.time()
 
-    dataframe = pd.read_csv('./Documentation/train_set_small.csv', sep='\t')
-    test_dataframe = pd.read_csv('./Documentation/test_set.csv', sep='\t')
+    dataframe = pd.read_csv('./input/train_set.csv', sep='\t')
+    test_dataframe = pd.read_csv('./input/test_set.csv', sep='\t')
     A = np.array(dataframe)
     length = A.shape[0]
-    print(length)
+    print("Size of input: ", length)
     myStopwords = createStopwords()
-    # wordcloud(dataframe, length, myStopwords)
-    # clustering(dataframe, 2, myStopwords)
+    wordcloud(dataframe, length, myStopwords)
+    clustering(dataframe, 2, myStopwords)
     classification("svm", dataframe, test_dataframe, myStopwords, predict_categories=False, createpng=True, dont_print=False)
-    # createReport(dataframe, myStopwords)
+    createReport(dataframe, myStopwords)
     print("Total execution time %s seconds" % (time.time() - start_time))
