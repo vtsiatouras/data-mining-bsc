@@ -57,5 +57,9 @@ docs/_build/
 # PyBuilder
 target/
 
-#Ignore PyCharm Idea folder
+#Ignore PyCharm Idea directories
 .idea/
+
+#Ignore output directories
+Project 1/output/
+Project 2/output/
