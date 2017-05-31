@@ -11,6 +11,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn import svm
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
+import csv
 import matplotlib.mlab as mlab
 
 attributeType = ["qualitative", "numerical", "qualitative", "qualitative", "numerical", "qualitative", "qualitative",
@@ -75,7 +76,7 @@ def classifiers(dataframe):
             dataframe[column] = le.fit_transform(dataframe[column])
         i += 1
     kf = KFold(n_splits=10)
-    accuracy = 0
+    svm_accuracy = 0
     # Run SVM
     print("Running SVM...(this might take some time)")
     for train_index, test_index in kf.split(dataframe):
@@ -84,19 +85,21 @@ def classifiers(dataframe):
         clf_cv = svm.SVC(gamma=1.0, C=1.0, kernel="linear").fit(X_train_counts,
                                                                 np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
-        accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
-    print("SVM Accuracy: ", accuracy / 10)
-    accuracy = 0
+        svm_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
+    svm_accuracy /= 10
+    print("SVM Accuracy: ", svm_accuracy)
+    rf_accuracy = 0
     # Run Random Forests
-    print("Running Random Forests...")
+    print("Running Random Forest...")
     for train_index, test_index in kf.split(dataframe):
         X_train_counts = np.array(dataframe)[train_index]
         X_test_counts = np.array(dataframe)[test_index]
         clf_cv = RandomForestClassifier().fit(X_train_counts, np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
-        accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
-    print("Random Forests Accuracy: ", accuracy / 10)
-    accuracy = 0
+        rf_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
+    rf_accuracy /= 10
+    print("Random Forest Accuracy: ", rf_accuracy)
+    nb_accuracy = 0
     # Run Naive Bayes
     print("Running Naive Bayes...")
     for train_index, test_index in kf.split(dataframe):
@@ -104,8 +107,16 @@ def classifiers(dataframe):
         X_test_counts = np.array(dataframe)[test_index]
         clf_cv = MultinomialNB().fit(X_train_counts, np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
-        accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
-    print("Naive Bayes Accuracy: ", accuracy / 10)
+        nb_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
+    nb_accuracy /= 10
+    print("Naive Bayes Accuracy: ", nb_accuracy)
+    # Output to a .csv file
+    out_file = open("output/EvaluationMetric_10fold.csv", 'w')
+    wr = csv.writer(out_file, delimiter="\t")
+    firstLine = ["Statistic Measure", "Naive Bayes", "Random Forest", "SVM"]
+    wr.writerow(firstLine)
+    secondLine = ["Accuracy", nb_accuracy, rf_accuracy, svm_accuracy]
+    wr.writerow(secondLine)
 
 
 if __name__ == "__main__":
@@ -114,7 +125,6 @@ if __name__ == "__main__":
     dataframe = pd.read_csv('./datasets/train.tsv', sep='\t')
     test_dataframe = pd.read_csv('./datasets/test.tsv', sep='\t')
     A = np.array(dataframe)
-    print(A)
     length = A.shape[0]
     print("Size of input: ", length)
     # print(dataframe)
