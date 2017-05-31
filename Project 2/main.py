@@ -18,6 +18,21 @@ attributeType = ["qualitative", "numerical", "qualitative", "qualitative", "nume
                  "numerical", "qualitative", "qualitative", "numerical", "qualitative", "numerical", "qualitative",
                  "qualitative", "numerical", "qualitative", "numerical", "qualitative", "qualitative"]
 
+def performLabelEncoding(dataframe):
+    le = preprocessing.LabelEncoder()
+    i = 0
+    # For every column
+    for column in dataframe:
+        # Excluding the last two
+        if i == 20:
+            break
+        # If attribute is qualitative
+        if attributeType[i] == "qualitative":
+            # Label encode it
+            dataframe[column] = le.fit_transform(dataframe[column])
+        i += 1
+    return dataframe
+
 
 def createPlots(dataframe):
     good = dataframe[dataframe["Label"] == 1]
@@ -63,37 +78,28 @@ def createPlots(dataframe):
 
 
 def classifiers(dataframe):
-    le = preprocessing.LabelEncoder()
-    i = 0
-    # For every column
-    for column in dataframe:
-        # Excluding the last two
-        if i == 20:
-            break
-        # If attribute is qualitative
-        if attributeType[i] == "qualitative":
-            # Label encode it
-            dataframe[column] = le.fit_transform(dataframe[column])
-        i += 1
+    # dataframe = performLabelEncoding(dataframe)
     kf = KFold(n_splits=10)
+    attributes = dataframe.iloc[:, 0:20]
     svm_accuracy = 0
     # Run SVM
     print("Running SVM...(this might take some time)")
     for train_index, test_index in kf.split(dataframe):
-        X_train_counts = np.array(dataframe)[train_index]
-        X_test_counts = np.array(dataframe)[test_index]
-        clf_cv = svm.SVC(gamma=1.0, C=1.0, kernel="linear").fit(X_train_counts,
+        X_train_counts = np.array(dataframe.iloc[:, 0:20])[train_index]
+        X_test_counts = np.array(dataframe.iloc[:, 0:20])[test_index]
+        clf_cv = svm.SVC(gamma=1.0, C=1.0, kernel="rbf").fit(X_train_counts,
                                                                 np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
         svm_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
+        print(accuracy_score(np.array(dataframe["Label"])[test_index], yPred))
     svm_accuracy /= 10
     print("SVM Accuracy: ", svm_accuracy)
     rf_accuracy = 0
     # Run Random Forests
     print("Running Random Forest...")
     for train_index, test_index in kf.split(dataframe):
-        X_train_counts = np.array(dataframe)[train_index]
-        X_test_counts = np.array(dataframe)[test_index]
+        X_train_counts = np.array(dataframe.iloc[:, 0:20])[train_index]
+        X_test_counts = np.array(dataframe.iloc[:, 0:20])[test_index]
         clf_cv = RandomForestClassifier().fit(X_train_counts, np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
         rf_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
@@ -103,8 +109,8 @@ def classifiers(dataframe):
     # Run Naive Bayes
     print("Running Naive Bayes...")
     for train_index, test_index in kf.split(dataframe):
-        X_train_counts = np.array(dataframe)[train_index]
-        X_test_counts = np.array(dataframe)[test_index]
+        X_train_counts = np.array(dataframe.iloc[:, 0:20])[train_index]
+        X_test_counts = np.array(dataframe.iloc[:, 0:20])[test_index]
         clf_cv = MultinomialNB().fit(X_train_counts, np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
         nb_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
@@ -119,6 +125,31 @@ def classifiers(dataframe):
     wr.writerow(secondLine)
 
 
+def predictions(dataframe, test_dataframe):
+    test_dataframe = performLabelEncoding(test_dataframe)
+    # Convert to numpy array only the attributes (exclude label & id)
+    X_train = np.array(dataframe.iloc[:, 0:20])
+    X_test = np.array(test_dataframe.iloc[:, 0:20])
+    clf_cv = RandomForestClassifier().fit(X_train, np.array(dataframe["Label"]))
+    predicted = clf_cv.predict(X_test)
+    # Output to a .csv file
+    out_file = open("output/testSet_categories.csv", 'w')
+    wr = csv.writer(out_file, delimiter="\t")
+    firstLine = ["Client_ID", "Predicted_Label"]
+    # Write the first line
+    wr.writerow(firstLine)
+    # For every prediction
+    for i in range(len(test_dataframe)):
+        # If its good
+        if predicted[i] == 1:
+            line = [int(test_dataframe["Id"][i]), "Good"]
+        # If its bad
+        else:
+            line = [int(test_dataframe["Id"][i]), "Bad"]
+        # Write the line
+        wr.writerow(line)
+
+
 if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
     start_time = time.time()
@@ -127,8 +158,10 @@ if __name__ == "__main__":
     A = np.array(dataframe)
     length = A.shape[0]
     print("Size of input: ", length)
-    # print(dataframe)
-    # print(dataframe["Attribute1"])
     # createPlots(dataframe)
-    classifiers(dataframe)
+    # Create a copy of the dataframe to prevent overwriting the original dataframe
+    encoded_dataframe = dataframe.copy()
+    encoded_dataframe = performLabelEncoding(encoded_dataframe)
+    # classifiers(encoded_dataframe)
+    predictions(encoded_dataframe, test_dataframe)
     print("Total execution time %s seconds" % (time.time() - start_time))
