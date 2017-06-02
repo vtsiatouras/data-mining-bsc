@@ -11,6 +11,8 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn import svm
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
+from operator import itemgetter
+import math
 import csv
 import matplotlib.mlab as mlab
 
@@ -42,64 +44,48 @@ def createPlots(dataframe):
         if i == 20:
             break
         if attributeType[i] == "qualitative":
-            a = ['<0', '<200', '200<...<2000', '2000<']
-            ax = good[column].value_counts().plot(kind='bar')
-            ax.set_xticklabels(a, rotation=0)
-            # Creating legend and title for the figure. Legend created with figlegend(), title with suptitle()
-            suptitle = plt.suptitle('Example Plot', x=0.45, y=0.87, fontsize=18)
-            # plt.xlabel('Age')
-            # plt.ylabel('# of Applicants')
             name = "output/Attribute" + str(i + 1) + "_" + "good.png"
             savefig(name)
             plt.figure()
             bad[column].value_counts().plot(kind='bar')
             name = "output/Attribute" + str(i + 1) + "_" + "bad.png"
             savefig(name)
-            # plt.xlabel('Age')
-            # plt.ylabel('# of Applicants')
             if i < 19:
                 plt.figure()
         elif attributeType[i] == "numerical":
             good.boxplot(column)
-            # plt.xlabel('Age')
-            # plt.ylabel('# of Applicants')
             name = "output/Attribute" + str(i + 1) + "_" + "good.png"
             savefig(name)
             plt.figure()
             bad.boxplot(column)
-            # plt.xlabel('Age')
-            # plt.ylabel('# of Applicants')
             name = "output/Attribute" + str(i + 1) + "_" + "bad.png"
             savefig(name)
             if i < 19:
                 plt.figure()
         i += 1
-        # plt.show()
 
 
 def classifiers(dataframe):
-    # dataframe = performLabelEncoding(dataframe)
     kf = KFold(n_splits=10)
-    attributes = dataframe.iloc[:, 0:20]
+    attributeColumns = dataframe.iloc[:, 0:20]
     svm_accuracy = 0
     # Run SVM
     print("Running SVM...(this might take some time)")
     for train_index, test_index in kf.split(dataframe):
-        X_train_counts = np.array(dataframe.iloc[:, 0:20])[train_index]
-        X_test_counts = np.array(dataframe.iloc[:, 0:20])[test_index]
+        X_train_counts = np.array(attributeColumns)[train_index]
+        X_test_counts = np.array(attributeColumns)[test_index]
         clf_cv = svm.SVC(gamma=1.0, C=1.0, kernel="rbf").fit(X_train_counts,
                                                                 np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
         svm_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
-        print(accuracy_score(np.array(dataframe["Label"])[test_index], yPred))
     svm_accuracy /= 10
     print("SVM Accuracy: ", svm_accuracy)
     rf_accuracy = 0
     # Run Random Forests
     print("Running Random Forest...")
     for train_index, test_index in kf.split(dataframe):
-        X_train_counts = np.array(dataframe.iloc[:, 0:20])[train_index]
-        X_test_counts = np.array(dataframe.iloc[:, 0:20])[test_index]
+        X_train_counts = np.array(attributeColumns)[train_index]
+        X_test_counts = np.array(attributeColumns)[test_index]
         clf_cv = RandomForestClassifier().fit(X_train_counts, np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
         rf_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
@@ -109,8 +95,8 @@ def classifiers(dataframe):
     # Run Naive Bayes
     print("Running Naive Bayes...")
     for train_index, test_index in kf.split(dataframe):
-        X_train_counts = np.array(dataframe.iloc[:, 0:20])[train_index]
-        X_test_counts = np.array(dataframe.iloc[:, 0:20])[test_index]
+        X_train_counts = np.array(attributeColumns)[train_index]
+        X_test_counts = np.array(attributeColumns)[test_index]
         clf_cv = MultinomialNB().fit(X_train_counts, np.array(dataframe["Label"])[train_index])
         yPred = clf_cv.predict(X_test_counts)
         nb_accuracy += accuracy_score(np.array(dataframe["Label"])[test_index], yPred)
@@ -150,6 +136,112 @@ def predictions(dataframe, test_dataframe):
         wr.writerow(line)
 
 
+def entropy(dataframe, attribute):
+    attributeFrequency = {}
+    entropy = 0.0
+    # For every row of the dataframe, count the frequencies per value
+    for i in range(len(dataframe)):
+        value = dataframe[attribute][i]
+        if value in attributeFrequency:
+            attributeFrequency[value] += 1.0
+        else:
+            attributeFrequency[value] = 1.0
+    # For each value apply the entropy formula
+    for frequency in attributeFrequency.values():
+        entropy += (-frequency / len(dataframe)) * math.log(frequency / len(dataframe), 2)
+    return entropy
+
+
+def informationGain(dataframe, attribute):
+    attributeFrequency = {}
+    subsetEntropy = 0.0
+    # For every row of the dataframe, count the frequencies per value
+    for i in range(len(dataframe)):
+        value = dataframe[attribute][i]
+        if value in attributeFrequency:
+            attributeFrequency[value] += 1.0
+        else:
+            attributeFrequency[value] = 1.0
+    # For each value apply the information gain formula
+    for keyValue in attributeFrequency.keys():
+        weight = attributeFrequency[keyValue] / sum(attributeFrequency.values())
+        dataframeSubset = pd.DataFrame()
+        # Create a subset of the dataframe
+        for i in range(len(dataframe)):
+            value = dataframe[attribute][i]
+            if value == keyValue:
+                dataframeSubset.append(dataframe.iloc[i, 0:20])
+        subsetEntropy += weight * entropy(dataframeSubset, attribute)
+    return entropy(dataframe, attribute) - subsetEntropy
+
+
+def featureSelection(dataframe, encodedDataframe):
+    print("Calculating information gain for every attribute...")
+    attributeInfoGain = []
+    # For every column
+    i = 0
+    for column in dataframe:
+        # Excluding the last two
+        if i == 20:
+            break
+        i += 1
+        ig = informationGain(dataframe, column)
+        attributeInfoGain.append((column, ig))
+    accuracyArray = []
+    attributeInfoGain.sort(key=itemgetter(1))
+    attributeColumns = encodedDataframe.iloc[:, 0:20]
+    for attribute, infoGain in attributeInfoGain:
+        kf = KFold(n_splits=10)
+        rf_accuracy = 0
+        # Run Random Forests
+        print("Running Random Forest with", attributeColumns.shape[1], " features...", end=' ')
+        for train_index, test_index in kf.split(attributeColumns):
+            X_train_counts = np.array(attributeColumns)[train_index]
+            X_test_counts = np.array(attributeColumns)[test_index]
+            clf_cv = RandomForestClassifier().fit(X_train_counts, np.array(encodedDataframe["Label"])[train_index])
+            yPred = clf_cv.predict(X_test_counts)
+            rf_accuracy += accuracy_score(np.array(encodedDataframe["Label"])[test_index], yPred)
+        rf_accuracy /= 10
+        print("Accuracy: ", rf_accuracy)
+        accuracyArray.append(rf_accuracy)
+
+        attributeColumns = attributeColumns.drop(attribute, axis=1)
+        print(attribute, "with information gain %.2f" % infoGain, "removed\n")
+        sh = attributeColumns.shape
+        if sh[1] == 0:
+            break
+    print(accuracyArray)
+    x_axis = [i for i in range(1, 21)]
+    x_axis_reversed = [i for i in reversed(range(1, 21))]
+    t = []
+    for i in range(0, 19):
+        t.append((x_axis, accuracyArray))
+    print(x_axis, accuracyArray)
+    print(len(x_axis), len(accuracyArray))
+    plt.figure()
+    plt.plot(x_axis, accuracyArray)
+    plt.xticks(x_axis, x_axis_reversed)
+    plt.ylabel('Accuracy')
+    plt.xlabel('Number of features')
+    savefig("output/attribute_removal_accuracy_penalty.png")
+
+
+def createBins(dataframe):
+    i = 0
+    # For every column
+    for column in dataframe:
+        # Excluding the last two
+        if i == 20:
+            break
+        # If attribute is numerical
+        if attributeType[i] == "numerical":
+            # Create bins
+            dataframe[column] = pd.cut(dataframe[column], bins=5, labels=False)
+        i += 1
+    return dataframe
+
+
+
 if __name__ == "__main__":
     os.makedirs(os.path.dirname("output/"), exist_ok=True)
     start_time = time.time()
@@ -158,10 +250,14 @@ if __name__ == "__main__":
     A = np.array(dataframe)
     length = A.shape[0]
     print("Size of input: ", length)
-    # createPlots(dataframe)
+    createPlots(dataframe)
     # Create a copy of the dataframe to prevent overwriting the original dataframe
     encoded_dataframe = dataframe.copy()
     encoded_dataframe = performLabelEncoding(encoded_dataframe)
-    # classifiers(encoded_dataframe)
+    categorical_dataframe = dataframe.copy()
+    categorical_dataframe = createBins(categorical_dataframe)
+
+    classifiers(encoded_dataframe)
     predictions(encoded_dataframe, test_dataframe)
+    featureSelection(dataframe, encoded_dataframe)
     print("Total execution time %s seconds" % (time.time() - start_time))
