@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import savefig
-from sklearn.feature_extraction import DictVectorizer
 from sklearn import preprocessing
 from sklearn.model_selection import KFold
 from sklearn.naive_bayes import MultinomialNB
@@ -14,11 +13,11 @@ from sklearn.metrics import accuracy_score
 from operator import itemgetter
 import math
 import csv
-import matplotlib.mlab as mlab
 
 attributeType = ["qualitative", "numerical", "qualitative", "qualitative", "numerical", "qualitative", "qualitative",
                  "numerical", "qualitative", "qualitative", "numerical", "qualitative", "numerical", "qualitative",
                  "qualitative", "numerical", "qualitative", "numerical", "qualitative", "qualitative"]
+
 
 def performLabelEncoding(dataframe):
     le = preprocessing.LabelEncoder()
@@ -40,23 +39,32 @@ def createPlots(dataframe):
     good = dataframe[dataframe["Label"] == 1]
     bad = dataframe[dataframe["Label"] == 2]
     i = 0
+    # For every column
     for column in dataframe:
+        # Excluding the last two
         if i == 20:
             break
+        # If attribute is qualitative
         if attributeType[i] == "qualitative":
+            plt.title(column + " Good")
+            good[column].value_counts().plot(kind='bar')
             name = "output/Attribute" + str(i + 1) + "_" + "good.png"
             savefig(name)
             plt.figure()
+            plt.title(column + " Bad")
             bad[column].value_counts().plot(kind='bar')
             name = "output/Attribute" + str(i + 1) + "_" + "bad.png"
             savefig(name)
             if i < 19:
                 plt.figure()
+        # If attribute is numerical
         elif attributeType[i] == "numerical":
+            plt.title(column + " Good")
             good.boxplot(column)
             name = "output/Attribute" + str(i + 1) + "_" + "good.png"
             savefig(name)
             plt.figure()
+            plt.title(column + " Bad")
             bad.boxplot(column)
             name = "output/Attribute" + str(i + 1) + "_" + "bad.png"
             savefig(name)
@@ -119,7 +127,7 @@ def predictions(dataframe, test_dataframe):
     clf_cv = RandomForestClassifier().fit(X_train, np.array(dataframe["Label"]))
     predicted = clf_cv.predict(X_test)
     # Output to a .csv file
-    out_file = open("output/testSet_categories.csv", 'w')
+    out_file = open("output/testSet_Predictions.csv", 'w')
     wr = csv.writer(out_file, delimiter="\t")
     firstLine = ["Client_ID", "Predicted_Label"]
     # Write the first line
@@ -176,7 +184,7 @@ def informationGain(dataframe, attribute):
 
 
 def featureSelection(dataframe, encodedDataframe):
-    print("Calculating information gain for every attribute...")
+    print("Calculating information gain for every attribute...", end=' ')
     attributeInfoGain = []
     # For every column
     i = 0
@@ -189,12 +197,15 @@ def featureSelection(dataframe, encodedDataframe):
         attributeInfoGain.append((column, ig))
     accuracyArray = []
     attributeInfoGain.sort(key=itemgetter(1))
+    print("Done!")
+    for t in attributeInfoGain:
+        print(t[0], "%.2f" % t[1])
     attributeColumns = encodedDataframe.iloc[:, 0:20]
     for attribute, infoGain in attributeInfoGain:
         kf = KFold(n_splits=10)
         rf_accuracy = 0
         # Run Random Forests
-        print("Running Random Forest with", attributeColumns.shape[1], " features...", end=' ')
+        print("Running Random Forest with", attributeColumns.shape[1], "features...", end=' ')
         for train_index, test_index in kf.split(attributeColumns):
             X_train_counts = np.array(attributeColumns)[train_index]
             X_test_counts = np.array(attributeColumns)[test_index]
@@ -210,14 +221,11 @@ def featureSelection(dataframe, encodedDataframe):
         sh = attributeColumns.shape
         if sh[1] == 0:
             break
-    print(accuracyArray)
     x_axis = [i for i in range(1, 21)]
     x_axis_reversed = [i for i in reversed(range(1, 21))]
     t = []
     for i in range(0, 19):
         t.append((x_axis, accuracyArray))
-    print(x_axis, accuracyArray)
-    print(len(x_axis), len(accuracyArray))
     plt.figure()
     plt.plot(x_axis, accuracyArray)
     plt.xticks(x_axis, x_axis_reversed)
@@ -239,7 +247,6 @@ def createBins(dataframe):
             dataframe[column] = pd.cut(dataframe[column], bins=5, labels=False)
         i += 1
     return dataframe
-
 
 
 if __name__ == "__main__":
