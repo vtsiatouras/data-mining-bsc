@@ -1,5 +1,7 @@
 # Data Mining
 
+Copyright (C) 2017 Vangelis Tsiatouras
+
 ## About 
 
 This repository contains the assignments for the course "Data Mining" of the dept. Informatics & Telecommunications of University of Athens. The 2 directories contain 2 Python applications that implement some machine learning & data mining algorithms such as Naive Bayes classification, Support Vector Machines, k-Means, k-NN etc.
