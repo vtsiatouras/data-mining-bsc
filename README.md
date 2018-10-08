@@ -10,7 +10,7 @@ In this project we implemented an app that classifies text with multiple ways. T
 
 Initially, all the stopwords are filtered out of all the texts of the train set. Next the programm generates wordclouds of each category.
 
-![WordClouds]()
+![WordClouds](https://github.com/VangelisTsiatouras/data-mining-di/blob/master/readme_assets/wordclouds.png)
 
 ### Clustering using K-Means
 
@@ -62,7 +62,7 @@ K-Nearest Neighbors
 
 ROC curves for SVM
 
-![ROC_SVM]()
+![ROC_SVM](https://github.com/VangelisTsiatouras/data-mining-di/blob/master/readme_assets/roc_10fold_detailed.png)
 
 ### Frameworks & Libraries used
 
