@@ -1,6 +1,6 @@
 # Data Mining
 
-Copyright (C) 2017 Vangelis Tsiatouras
+Copyright (C) 2017 Vangelis Tsiatouras & Nick Sofras
 
 ## About 
 
