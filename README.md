@@ -81,7 +81,7 @@ ROC curves for SVM
 
 ## Project 2
 
-In this project we worked mostly in data exploration, data evaluation and feature selection. More specific, we had to create a classification model that evaluates creditworthiness of borrowers. The train dataset in each row contains the attributes of each borrower and a label if the borrower is 'good' or 'bad'. More info about the attributes of the dataset can be found [here]().
+In this project we worked mostly in data exploration, data evaluation and feature selection. More specific, we had to create a classification model that evaluates creditworthiness of borrowers. The train dataset in each row contains the attributes of each borrower and a label if the borrower is 'good' or 'bad'. More info about the attributes of the dataset can be found [here](https://github.com/VangelisTsiatouras/data-mining-di/blob/master/project_2/documentation/german.txt).
 
 ### Classification & Feature Selection
 
@@ -120,7 +120,7 @@ After that we calculated the [Information Gain](https://en.wikipedia.org/wiki/In
 
 To find the most optimal amount of Attributes, we remove attributes one by one in the order that are stored in the array above ('Attribute20' -> 'Attribute10' -> 'Attribute18' -> ...). Next is calculated the average accuracy for 10-fold cross validation using Random Forests. The plot below shows the result of this process.
 
-![Feature Selection]()
+![Feature Selection](https://github.com/VangelisTsiatouras/data-mining-di/blob/master/readme_assets/attribute_removal_accuracy_penalty.png)
 
 The graph shows that with the attirbutes 20, 10, 18, 14, 19, 16, 15, 17, 9 and 3 removed, the accuracy of Random Forests can achieve ~76%. That makes the classification 2% more accurate.
 
