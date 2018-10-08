@@ -16,7 +16,13 @@ Initially, all the stopwords are filtered out of all the texts of the train set.
 
 Using `nltk.cluster` we implemented a function that split the train set into 5 clusters without using the varaiable 'category'. This unsupervised clustering split the dataset pretty well as its shown below:
 
-[TABLE]
+|           | Politics | Film | Football | Business | Technology |
+|-----------|----------|------|----------|----------|------------|
+| Cluster 1 | 0.00     | 0.00 | 0.99     | 0.00     | 0.00       |
+| Cluster 2 | 0.02     | 0.01 | 0.09     | 0.08     | 0.80       |
+| Cluster 3 | 0.09     | 0.00 | 0.00     | 0.90     | 0.01       |
+| Cluster 4 | 0.97     | 0.00 | 0.00     | 0.02     | 0.00       |
+| Cluster 5 | 0.01     | 0.96 | 0.00     | 0.00     | 0.02       |
 
 Also the metric that used for the clustering was cosine similarity.
 

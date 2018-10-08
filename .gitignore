@@ -61,5 +61,5 @@ target/
 .idea/
 
 #Ignore output directories
-Project 1/output/
-Project 2/output/
+project_1/output/
+project_2/output/
