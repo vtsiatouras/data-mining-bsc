@@ -124,7 +124,7 @@ To find the most optimal amount of Attributes, we remove attributes one by one i
 
 ![Feature Selection](https://github.com/VangelisTsiatouras/data-mining-di/blob/master/readme_assets/attribute_removal_accuracy_penalty.png)
 
-The graph shows that with the attirbutes 20, 10, 18, 14, 19, 16, 15, 17, 9 and 3 removed, the accuracy of Random Forests can achieve ~76%. That makes the classification 2% more accurate.
+The graph shows that with the attributes 20, 10, 18, 14, 19, 16, 15, 17, 9 and 3 removed, Random Forests can be ~76% accurate. That makes the classification 2% more accurate.
 
 ### Frameworks & Libraries used
 
